@@ -1,50 +1,62 @@
-## 💻 Sobre o projeto
+//possible implementations
 
-Voll.med é uma clínica médica fictícia que precisa de um aplicativo para gestão de consultas. O aplicativo deve possuir funcionalidades que permitam o cadastro de médicos e de pacientes, e também o agendamento e cancelamento de consultas.
+@Bean
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http.csrf().disable()
+        .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        .and().authorizeHttpRequests()
+        .requestMatchers(HttpMethod.POST, "/login").permitAll()
+        .requestMatchers(HttpMethod.DELETE, "/medicos").hasRole("ADMIN")
+        .requestMatchers(HttpMethod.DELETE, "/pacientes").hasRole("ADMIN")
+        .anyRequest().authenticated()
+        .and().addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
+        .build();
+}
 
-Enquanto um time de desenvolvimento será responsável pelo aplicativo mobile, o nosso será responsável pelo desenvolvimento da API Rest desse projeto.
 
----
+@RestControllerAdvice
+public class TratadorDeErros {
 
-## ⚙️ Funcionalidades
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity tratarErro404() {
+        return ResponseEntity.notFound().build();
+    }
 
-- [x] CRUD de médicos;
-- [x] CRUD de pacientes;
-- [ ] Agendamento de consultas(em breve);
-- [ ] Cancelamento de consultas(em breve);
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity tratarErro400(MethodArgumentNotValidException ex) {
+        var erros = ex.getFieldErrors();
+        return ResponseEntity.badRequest().body(erros.stream().map(DadosErroValidacao::new).toList());
+    }
 
----
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity tratarErro400(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
 
-## 🎨 Layout
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity tratarErroBadCredentials() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciais inválidas");
+    }
 
-O layout da aplicação mobile está disponível neste link: <a href="https://www.figma.com/file/N4CgpJqsg7gjbKuDmra3EV/Voll.med">Figma</a>
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity tratarErroAuthentication() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Falha na autenticação");
+    }
 
----
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity tratarErroAcessoNegado() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado");
+    }
 
-## 📄 Documentação
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity tratarErro500(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro: " +ex.getLocalizedMessage());
+    }
 
-A documentação das funcionalidades da aplicação pode ser acessada neste link: <a href="https://trello.com/b/O0lGCsKb/api-voll-med">Trello</a>
+    private record DadosErroValidacao(String campo, String mensagem) {
+        public DadosErroValidacao(FieldError erro) {
+            this(erro.getField(), erro.getDefaultMessage());
+        }
+    }
+}
 
----
-
-## 🛠 Tecnologias
-
-As seguintes tecnologias foram utilizadas no desenvolvimento da API Rest do projeto:
-
-- **[Java 17](https://www.oracle.com/java)**
-- **[Spring Boot 3](https://spring.io/projects/spring-boot)**
-- **[Maven](https://maven.apache.org)**
-- **[MySQL](https://www.mysql.com)**
-- **[Hibernate](https://hibernate.org)**
-- **[Flyway](https://flywaydb.org)**
-- **[Lombok](https://projectlombok.org)**
-
----
-
-## 📝 Licença
-
-Projeto desenvolvido por [Alura](https://www.alura.com.br) e utilizado nos cursos de Spring Boot.
-
-Instrutor: [Rodrigo Ferreira](https://cursos.alura.com.br/user/rodrigo-ferreira) 
-
----
